@@ -1,0 +1,76 @@
+```{julia}
+const I = Iterators
+```
+```{julia}
+struct Cell
+    pn::Int
+    plasmids::Vector{Bool}
+end
+
+Cell(n::Int, p=0.1) = Cell(n, [rand() < p for _ in 1:n])
+
+struct Population{T}
+    cells::Vector{T}
+end
+
+Population(n::Int, pl::Int, p=0.1) = Population([Cell(pl, p) for _ in 1:n])
+
+pcount(c::Cell) = count(c.plasmids)
+np(c::Cell) = length(c.plasmids)
+npos(c::Cell) = count(c.plasmids)
+
+function replicate(c::Cell)
+    dup = [c.plasmids; c.plasmids]
+
+    assignments = [rand() < 0.5 ? 1 : 2 for _ in dup]
+    ratio = (c.pn * 2) / length(assignments)
+
+    c1 = Cell(c.pn, dup[findall(a-> a == 1 && (rand() < ratio), assignments)])
+    c2 = Cell(c.pn, dup[findall(a-> a == 2 && (rand() < ratio), assignments)])
+
+    return (c1,c2)
+end
+
+function generation(p::Population; popsize=10_000)
+    cells = collect(I.filter(c-> any(c.plasmids), I.flatten(I.map(replicate, p.cells))))
+    if length(cells) > popsize
+        ratio = popsize / length(cells)
+        cells = cells[[rand() < ratio for _ in eachindex(cells)]]
+    end
+    Population(cells)
+end
+
+```
+
+```{julia}
+using Statistics
+
+
+fig = Figure();
+ax = Axis(fig[1,1]; xlabel="generation", ylabel="% of cells w/ any (-) plasmid")
+# ax2 = Axis(fig[2,1]; xlabel="generation", ylabel="% of cells w/ any (-) plasmid")
+
+popsize = 100
+pn = 50
+
+for _ in 1:5
+
+    pop = Population(popsize, pn)
+
+    perc_neg = Float64[]
+    cell_counts = Float64[]
+
+    for i in 1:1000
+        pop = generation(pop; popsize)
+        neg = count(c-> !all(c.plasmids), pop.cells) / length(pop.cells)
+        push!(perc_neg, neg)
+        push!(cell_counts, length(pop.cells))
+        neg == 0 && break
+    end
+
+    scatterlines!(ax, perc_neg)
+ #   scatterlines!(ax2, cell_counts)
+
+end
+fig
+```
