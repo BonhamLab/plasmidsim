@@ -3,6 +3,8 @@
 Simulation of selection of plasmid mutant selection
 in the face of multi-copy plasmids.
 
+![Plasmid simulation figure - 4 panes, 5, 10, 25, or 50 plasmids with scatter lines showing proportion of cells with any negative plasmids](figure.png)
+
 ## Assumptions
 
 1. Some "ideal" copy number N (configurable).
@@ -22,3 +24,4 @@ in the face of multi-copy plasmids.
 3. Plasmid numbers are normalized according to assumption 1
 4. Any cells lacking at least 1 positive plasmid are removed (see assumption 3)
 5. If population size is too large, cells are randomly culled (see assumption 2)
+

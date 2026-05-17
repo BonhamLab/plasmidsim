@@ -3,17 +3,23 @@ const I = Iterators
 ```
 ```{julia}
 struct Cell
-    pn::Int
+    N::Int
     plasmids::Vector{Bool}
 end
 
-Cell(n::Int, p=0.1) = Cell(n, [rand() < p for _ in 1:n])
+function Cell(n::Int, pr::Float64)
+    0. < pr <= 1. || throw(ErrorException("Positive fraction must be between 0 and 1"))
+    Cell(n, [rand() < pr for _ in 1:n])
+end
+
+# By default, p_+ is half 1/n - means most cells should have 0 or 1 positive plasmid to start
+Cell(n) = Cell(n, 0.5 / n)
 
 struct Population{T}
     cells::Vector{T}
 end
 
-Population(n::Int, pl::Int, p=0.1) = Population([Cell(pl, p) for _ in 1:n])
+Population(n::Int, p::Int) = Population([Cell(n) for _ in 1:p])
 
 pcount(c::Cell) = count(c.plasmids)
 np(c::Cell) = length(c.plasmids)
@@ -23,10 +29,10 @@ function replicate(c::Cell)
     dup = [c.plasmids; c.plasmids]
 
     assignments = [rand() < 0.5 ? 1 : 2 for _ in dup]
-    ratio = (c.pn * 2) / length(assignments)
+    ratio = (c.N * 2) / length(assignments)
 
-    c1 = Cell(c.pn, dup[findall(a-> a == 1 && (rand() < ratio), assignments)])
-    c2 = Cell(c.pn, dup[findall(a-> a == 2 && (rand() < ratio), assignments)])
+    c1 = Cell(c.N, dup[findall(a-> a == 1 && (rand() < ratio), assignments)])
+    c2 = Cell(c.N, dup[findall(a-> a == 2 && (rand() < ratio), assignments)])
 
     return (c1,c2)
 end
@@ -44,33 +50,47 @@ end
 
 ```{julia}
 using Statistics
+using CairoMakie
 
 
-fig = Figure();
-ax = Axis(fig[1,1]; xlabel="generation", ylabel="% of cells w/ any (-) plasmid")
-# ax2 = Axis(fig[2,1]; xlabel="generation", ylabel="% of cells w/ any (-) plasmid")
 
-popsize = 100
-pn = 50
-
-for _ in 1:5
-
-    pop = Population(popsize, pn)
+function simulate(N, P)
+    pop = Population(N,P)
 
     perc_neg = Float64[]
     cell_counts = Float64[]
 
     for i in 1:1000
-        pop = generation(pop; popsize)
+        pop = generation(pop; popsize=P)
         neg = count(c-> !all(c.plasmids), pop.cells) / length(pop.cells)
         push!(perc_neg, neg)
         push!(cell_counts, length(pop.cells))
         neg == 0 && break
     end
-
-    scatterlines!(ax, perc_neg)
- #   scatterlines!(ax2, cell_counts)
-
+    return (perc_neg, cell_counts)
 end
+```
+
+
+
+```{julia}
+P = 100
+
+fig = Figure();
+
+for (i, N) in enumerate([5,10,25,50])
+    row = i < 3 ? 1 : 2
+    col = isodd(i) ? 1 : 2
+
+    ax = Axis(fig[row,col]; title = "$N plasmids", xlabel="generation", ylabel="% of cells w/ any (-) plasmid")
+
+    for i in 1:5
+        perc_neg, cell_counts = simulate(N,P)
+        scatterlines!(ax, perc_neg; markersize=3)
+    #   scatterlines!(ax2, cell_counts)
+    end
+end
+
+save("figure.png", fig)
 fig
 ```
